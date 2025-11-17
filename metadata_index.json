@@ -1,0 +1,66 @@
+{
+  "sql_configs": {
+    "transaction_audit.sql": {
+      "file_path": "examples/configs/transaction_audit.sql",
+      "file_name": "transaction_audit.sql",
+      "keywords": [
+        "transaction",
+        "audit",
+        "compliance",
+        "investigation"
+      ],
+      "type": "investigation_query",
+      "description": "Transaction audit trail for compliance investigations"
+    },
+    "daily_settlement_report.sql": {
+      "file_path": "examples/configs/daily_settlement_report.sql",
+      "file_name": "daily_settlement_report.sql",
+      "keywords": [
+        "trade",
+        "settlement",
+        "daily",
+        "reconciliation"
+      ],
+      "type": "compliance_report",
+      "description": "Daily trade settlement reconciliation report for compliance"
+    }
+  },
+  "java_classes": {
+    "TransactionAuditProcessor.java": {
+      "file_path": "examples/src/TransactionAuditProcessor.java",
+      "file_name": "TransactionAuditProcessor.java",
+      "class_name": "TransactionAuditProcessor",
+      "keywords": [
+        "transaction",
+        "audit",
+        "investigation",
+        "compliance",
+        "trace"
+      ],
+      "type": "investigation_tool",
+      "description": "Processes transaction audit queries for compliance investigations",
+      "methods": [
+        "generateComplianceReport"
+      ]
+    },
+    "SettlementReportGenerator.java": {
+      "file_path": "examples/src/SettlementReportGenerator.java",
+      "file_name": "SettlementReportGenerator.java",
+      "class_name": "SettlementReportGenerator",
+      "keywords": [
+        "settlement",
+        "trade",
+        "report",
+        "daily",
+        "reconciliation"
+      ],
+      "type": "report_generator",
+      "description": "Generates daily settlement reports by executing SQL configs and formatting output",
+      "methods": [
+        "generateReport",
+        "executeQuery",
+        "saveReport"
+      ]
+    }
+  }
+}
