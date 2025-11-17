@@ -2,6 +2,10 @@
 
 An MCP (Model Context Protocol) server designed to automate trade surveillance support workflows by integrating with your existing SQL configs and Java code repositories.
 
+<a href="https://glama.ai/mcp/servers/@vic3custodio/mcp_test_2">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@vic3custodio/mcp_test_2/badge" alt="Trade Surveillance Support Server MCP server" />
+</a>
+
 ## Overview
 
 This MCP server enables you to:
