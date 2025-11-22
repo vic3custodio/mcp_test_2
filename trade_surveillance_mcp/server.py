@@ -47,24 +47,146 @@ async def parse_email_inquiry(email_content: str) -> dict[str, Any]:
         A dictionary containing parsed information including inquiry_type,
         trade_ids, time_period, priority, and suggested_actions
     """
-    # TODO: Implement email parsing logic
-    # This would use NLP or pattern matching to extract key information
+    import re
+    from datetime import datetime, timedelta
+    
+    content_lower = email_content.lower()
+    
+    # Extract trade IDs (common patterns: TRD123456, TRADE-123456, T-123456, #123456)
+    trade_id_patterns = [
+        r'\bTRD[\-_]?\d{5,10}\b',
+        r'\bTRADE[\-_]?\d{5,10}\b',
+        r'\bT[\-_]\d{5,10}\b',
+        r'#\d{5,10}\b',
+        r'\btrade\s+(?:id|number|ref)[\s:]+(\d{5,10})\b'
+    ]
+    trade_ids = []
+    for pattern in trade_id_patterns:
+        matches = re.findall(pattern, email_content, re.IGNORECASE)
+        trade_ids.extend(matches)
+    trade_ids = list(set(trade_ids))  # Remove duplicates
+    
+    # Extract account numbers (common patterns: ACC123456, ACCT-123456, Account: 123456)
+    account_patterns = [
+        r'\bACC(?:T)?[\-_]?\d{5,10}\b',
+        r'\baccount[\s:]+(\d{5,10})\b'
+    ]
+    account_numbers = []
+    for pattern in account_patterns:
+        matches = re.findall(pattern, email_content, re.IGNORECASE)
+        account_numbers.extend(matches)
+    account_numbers = list(set(account_numbers))
+    
+    # Extract time periods (dates, ranges, relative times)
+    time_period = None
+    date_patterns = [
+        r'\b(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b',  # MM/DD/YYYY or DD-MM-YYYY
+        r'\b(\d{4}[-/]\d{1,2}[-/]\d{1,2})\b',    # YYYY-MM-DD
+        r'\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b',
+        r'\b\d{1,2}\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\b'
+    ]
+    
+    dates_found = []
+    for pattern in date_patterns:
+        dates_found.extend(re.findall(pattern, email_content, re.IGNORECASE))
+    
+    # Check for relative time references
+    if 'last week' in content_lower or 'past week' in content_lower:
+        time_period = "last_week"
+    elif 'last month' in content_lower or 'past month' in content_lower:
+        time_period = "last_month"
+    elif 'yesterday' in content_lower:
+        time_period = "yesterday"
+    elif 'today' in content_lower or 'this morning' in content_lower:
+        time_period = "today"
+    elif 'last 7 days' in content_lower or 'past 7 days' in content_lower:
+        time_period = "last_7_days"
+    elif 'last 30 days' in content_lower or 'past 30 days' in content_lower:
+        time_period = "last_30_days"
+    elif dates_found:
+        time_period = dates_found[0] if isinstance(dates_found[0], str) else str(dates_found[0])
+    
+    # Determine inquiry type based on keywords
+    inquiry_type = "general_inquiry"
+    inquiry_keywords = {
+        "trade_issue": ["trade error", "failed trade", "trade problem", "transaction failed", "execution issue"],
+        "report_request": ["generate report", "need report", "send report", "report for", "can you provide"],
+        "data_verification": ["verify", "check data", "confirm", "validate", "reconcile"],
+        "settlement_inquiry": ["settlement", "settle", "payment", "clearing"],
+        "compliance_check": ["compliance", "audit", "regulatory", "regulation"],
+        "position_inquiry": ["position", "holdings", "balance", "exposure"],
+        "transaction_history": ["transaction history", "trade history", "past trades", "historical"]
+    }
+    
+    for inq_type, keywords in inquiry_keywords.items():
+        if any(keyword in content_lower for keyword in keywords):
+            inquiry_type = inq_type
+            break
+    
+    # Determine priority based on urgency indicators
+    priority = "medium"
+    high_priority_words = ["urgent", "asap", "immediately", "critical", "emergency", "high priority"]
+    low_priority_words = ["when you can", "no rush", "low priority", "whenever"]
+    
+    if any(word in content_lower for word in high_priority_words):
+        priority = "high"
+    elif any(word in content_lower for word in low_priority_words):
+        priority = "low"
+    
+    # Generate suggested actions based on inquiry type
+    suggested_actions = []
+    if inquiry_type == "report_request":
+        suggested_actions = [
+            "Search for relevant report config files",
+            "Identify appropriate Java report generator",
+            "Execute report generation",
+            "Send report to requester"
+        ]
+    elif inquiry_type == "trade_issue":
+        suggested_actions = [
+            "Search trade transaction records",
+            "Check for error logs",
+            "Verify trade details",
+            "Generate diagnostic report"
+        ]
+    elif inquiry_type == "data_verification":
+        suggested_actions = [
+            "Query relevant data sources",
+            "Run reconciliation checks",
+            "Generate verification report"
+        ]
+    elif inquiry_type == "settlement_inquiry":
+        suggested_actions = [
+            "Search settlement config files",
+            "Check settlement status",
+            "Generate settlement report"
+        ]
+    elif inquiry_type == "compliance_check":
+        suggested_actions = [
+            "Search compliance config files",
+            "Run audit checks",
+            "Generate compliance report"
+        ]
+    else:
+        suggested_actions = [
+            "Analyze inquiry details",
+            "Search for relevant config files",
+            "Identify appropriate action"
+        ]
     
     result = {
         "status": "parsed",
-        "inquiry_type": "trade_investigation",
-        "trade_ids": [],
-        "time_period": None,
-        "priority": "medium",
-        "suggested_actions": [
-            "Search for relevant config files",
-            "Check trade history",
-            "Generate compliance report"
-        ],
-        "raw_content": email_content[:200] + "..."  # Preview
+        "inquiry_type": inquiry_type,
+        "trade_ids": trade_ids,
+        "account_numbers": account_numbers,
+        "time_period": time_period,
+        "priority": priority,
+        "suggested_actions": suggested_actions,
+        "raw_content_preview": email_content[:300] + "..." if len(email_content) > 300 else email_content,
+        "content_length": len(email_content)
     }
     
-    logger.info(f"Parsed email inquiry: {result['inquiry_type']}")
+    logger.info(f"Parsed email inquiry: {inquiry_type}, Priority: {priority}, Found {len(trade_ids)} trade IDs")
     return result
 
 
