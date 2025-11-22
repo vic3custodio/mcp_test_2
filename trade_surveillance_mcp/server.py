@@ -285,37 +285,154 @@ async def execute_java_report(
     output_directory: str = "./reports"
 ) -> dict[str, Any]:
     """
-    Execute a Java process to generate a trade surveillance report.
+    Execute a Java unit test to generate a trade surveillance report.
     
-    This tool runs the specified Java class with the given config file to
-    generate the required report or data extract.
+    This tool runs the unit test for the specified Java class with the given 
+    config file to generate the required report or data extract. Running tests
+    ensures the report generation is validated during execution.
     
     Args:
-        java_class: The fully qualified Java class name to execute
+        java_class: The fully qualified Java class name (e.g., "com.trade.SettlementReportGenerator")
         config_file: Path to the SQL config file to use
         output_directory: Directory where the report should be saved
         
     Returns:
         A dictionary containing execution status, report path, and any errors
     """
-    # TODO: Implement Java execution logic
-    # This would use subprocess to run: java -cp <classpath> <class> <config>
+    import subprocess
+    import os
+    from datetime import datetime
+    from pathlib import Path
+    
+    start_time = datetime.now()
+    
+    # Derive test class name (e.g., SettlementReportGenerator -> SettlementReportGeneratorTest)
+    class_simple_name = java_class.split('.')[-1]
+    test_class_name = f"{class_simple_name}Test"
+    
+    # Get the package path from the java_class
+    if '.' in java_class:
+        package_parts = java_class.rsplit('.', 1)[0]
+        test_class_full = f"{package_parts}.{test_class_name}"
+    else:
+        test_class_full = test_class_name
+    
+    # Create output directory if it doesn't exist
+    output_path = Path(output_directory)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    # Generate report filename based on config and timestamp
+    config_name = Path(config_file).stem
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_filename = f"{config_name}_report_{timestamp}.csv"
+    report_path = output_path / report_filename
     
     result = {
-        "status": "pending",
+        "status": "running",
         "java_class": java_class,
+        "test_class": test_class_full,
         "config_file": config_file,
-        "output_directory": output_directory,
-        "report_path": None,
+        "output_directory": str(output_directory),
+        "report_path": str(report_path),
         "execution_time": None,
-        "errors": []
+        "errors": [],
+        "test_output": None
     }
     
-    # Placeholder: In real implementation, execute Java process
-    logger.info(f"Executing Java report: {java_class} with config: {config_file}")
-    
-    result["status"] = "simulated"
-    result["message"] = "Java execution simulated - implement subprocess logic"
+    try:
+        logger.info(f"Executing Java test: {test_class_full} for class: {java_class}")
+        
+        # Set environment variables for the test to use
+        env = os.environ.copy()
+        env['CONFIG_FILE'] = str(Path(config_file).absolute())
+        env['OUTPUT_FILE'] = str(report_path.absolute())
+        
+        # Determine build tool (Maven or Gradle)
+        project_root = Path.cwd()
+        has_maven = (project_root / "pom.xml").exists()
+        has_gradle = (project_root / "build.gradle").exists() or (project_root / "build.gradle.kts").exists()
+        
+        if has_maven:
+            # Run Maven test for specific test class
+            cmd = [
+                "mvn",
+                "test",
+                f"-Dtest={test_class_name}",
+                f"-DconfigFile={config_file}",
+                f"-DoutputFile={report_path}"
+            ]
+            logger.info(f"Running Maven command: {' '.join(cmd)}")
+        elif has_gradle:
+            # Run Gradle test for specific test class
+            cmd = [
+                "./gradlew",
+                "test",
+                f"--tests {test_class_name}",
+                f"-DconfigFile={config_file}",
+                f"-DoutputFile={report_path}"
+            ]
+            logger.info(f"Running Gradle command: {' '.join(cmd)}")
+        else:
+            # Fallback to direct JUnit execution
+            cmd = [
+                "java",
+                "-cp",
+                "target/test-classes:target/classes:lib/*",  # Adjust classpath as needed
+                "org.junit.runner.JUnitCore",
+                test_class_full
+            ]
+            logger.info(f"Running JUnit command: {' '.join(cmd)}")
+        
+        # Execute the test
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+            cwd=str(project_root)
+        )
+        
+        stdout, stderr = await process.communicate()
+        
+        # Calculate execution time
+        execution_time = (datetime.now() - start_time).total_seconds()
+        result["execution_time"] = f"{execution_time:.2f}s"
+        
+        # Process output
+        stdout_text = stdout.decode('utf-8') if stdout else ""
+        stderr_text = stderr.decode('utf-8') if stderr else ""
+        
+        result["test_output"] = stdout_text
+        
+        if process.returncode == 0:
+            result["status"] = "success"
+            logger.info(f"Test execution completed successfully in {execution_time:.2f}s")
+            
+            # Verify report was created
+            if report_path.exists():
+                file_size = report_path.stat().st_size
+                result["report_size"] = f"{file_size} bytes"
+                logger.info(f"Report generated: {report_path} ({file_size} bytes)")
+            else:
+                result["status"] = "completed_no_output"
+                result["errors"].append("Test passed but report file was not created")
+                logger.warning("Test passed but no report file found")
+        else:
+            result["status"] = "failed"
+            result["errors"].append(f"Test execution failed with exit code {process.returncode}")
+            if stderr_text:
+                result["errors"].append(stderr_text)
+            logger.error(f"Test execution failed: {stderr_text}")
+        
+    except FileNotFoundError as e:
+        result["status"] = "error"
+        result["errors"].append(f"Build tool not found: {str(e)}")
+        result["errors"].append("Ensure Maven (mvn) or Gradle (./gradlew) is installed and in PATH")
+        logger.error(f"Build tool not found: {e}")
+    except Exception as e:
+        result["status"] = "error"
+        result["errors"].append(f"Unexpected error: {str(e)}")
+        logger.error(f"Unexpected error during test execution: {e}", exc_info=True)
     
     return result
 
