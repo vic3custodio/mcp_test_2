@@ -53,3 +53,6 @@ htmlcov/
 .env
 .env.local
 examples/target/*
+examples/.classpath
+examples/.project
+examples/.settings/org.eclipse.jdt.core.prefs
