@@ -49,7 +49,8 @@ public class TransactionAuditProcessorTest {
             outputFile = System.getProperty("outputFile", "reports/transaction_audit_test.csv");
         }
         
-        processor = new TransactionAuditProcessor();
+        // Note: In actual implementation, pass database connection
+        processor = new TransactionAuditProcessor(null);
         dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
         
         System.out.println("=== Transaction Audit Processor Test ===");

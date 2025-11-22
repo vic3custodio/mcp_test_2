@@ -1,4 +1,4 @@
-package com.tradesurveillance.reports;
+package com.trade.surveillance;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

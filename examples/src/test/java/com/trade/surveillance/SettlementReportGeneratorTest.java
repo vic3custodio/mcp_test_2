@@ -45,7 +45,8 @@ public class SettlementReportGeneratorTest {
             outputFile = System.getProperty("outputFile", "reports/settlement_report_test.csv");
         }
         
-        generator = new SettlementReportGenerator();
+        // Note: In actual implementation, pass database connection and config path
+        generator = new SettlementReportGenerator(null, configFile);
         
         System.out.println("=== Settlement Report Generator Test ===");
         System.out.println("Config File: " + configFile);
